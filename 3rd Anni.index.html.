@@ -1,0 +1,729 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anniversary Crossword</title>
+  <style>
+    :root {
+      --ink: #171717;
+      --muted: #6a6a6a;
+      --paper: #f7f2ea;
+      --panel: #ffffff;
+      --grid: #d9d9d9;
+      --accent: #cc3f57;
+      --accent-dark: #8d253b;
+      --good: #1b7a43;
+      --bad: #b42318;
+      --cell: clamp(24px, 6vw, 36px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 22%, rgba(204, 63, 87, 0.12), transparent 28%),
+        radial-gradient(circle at 86% 16%, rgba(27, 122, 67, 0.1), transparent 26%),
+        linear-gradient(135deg, #f7f2ea, #fff9fa 52%, #f4ebe8);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1120px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 24px 0;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 6vw, 4.5rem);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .progress {
+      min-width: 190px;
+      padding: 12px 14px;
+      border: 1px solid #ead7dc;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.86);
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 1fr) minmax(280px, 390px);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .board-wrap,
+    .panel,
+    .reveal {
+      border: 1px solid #ead7dc;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 18px 44px rgba(55, 32, 38, 0.13);
+    }
+
+    .board-wrap {
+      padding: clamp(12px, 3vw, 22px);
+      overflow: auto;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(12, var(--cell));
+      grid-template-rows: repeat(13, var(--cell));
+      width: max-content;
+      margin: 0 auto;
+      border-left: 1px solid var(--grid);
+      border-top: 1px solid var(--grid);
+      background: #fff;
+    }
+
+    .cell {
+      position: relative;
+      width: var(--cell);
+      height: var(--cell);
+      border-right: 1px solid var(--grid);
+      border-bottom: 1px solid var(--grid);
+      background: #fff;
+    }
+
+    .cell.active {
+      background: #fff;
+      border: 2px solid #303030;
+      z-index: 1;
+    }
+
+    .cell:not(.active) {
+      background: #fff;
+    }
+
+    .cell input {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #000;
+      text-align: center;
+      text-transform: uppercase;
+      font-size: clamp(0.95rem, 4.4vw, 1.35rem);
+      font-weight: 500;
+      caret-color: var(--accent);
+    }
+
+    .cell input:focus {
+      box-shadow: inset 0 0 0 2px var(--accent);
+      background: #fff8fa;
+    }
+
+    .cell.correct input {
+      color: var(--good);
+      font-weight: 700;
+    }
+
+    .cell.wrong {
+      background: #ffe9e5;
+    }
+
+    .num {
+      position: absolute;
+      top: 1px;
+      left: 2px;
+      color: var(--muted);
+      font-size: 0.5rem;
+      font-weight: 700;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .panel {
+      padding: 16px;
+    }
+
+    .clues {
+      display: grid;
+      gap: 9px;
+      margin: 0 0 14px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .clues li {
+      display: grid;
+      grid-template-columns: 30px 1fr auto;
+      gap: 10px;
+      align-items: start;
+      padding: 10px;
+      border: 1px solid #efe0e4;
+      border-radius: 8px;
+      background: #fffafa;
+      cursor: pointer;
+    }
+
+    .clues li:hover,
+    .clues li:focus-visible {
+      border-color: var(--accent);
+      outline: 0;
+    }
+
+    .badge {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .clue {
+      line-height: 1.35;
+    }
+
+    .hint-button {
+      min-width: 38px;
+      min-height: 30px;
+      padding: 0 10px;
+      border: 1px solid #ead7dc;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--accent-dark);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .hint-button:hover,
+    .hint-button:focus-visible {
+      border-color: var(--accent);
+      outline: 0;
+    }
+
+    .hint {
+      grid-column: 2 / -1;
+      display: none;
+      margin-top: -2px;
+      color: var(--accent-dark);
+      font-size: 0.92rem;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .hint.show {
+      display: block;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .controls button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+    }
+
+    .controls .secondary {
+      color: var(--ink);
+      background: #f0e4e7;
+    }
+
+    .initials {
+      padding: 12px;
+      border: 1px solid #efe0e4;
+      border-radius: 8px;
+      background: #fff7f8;
+    }
+
+    .initials p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .letters {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .letters span {
+      display: grid;
+      place-items: center;
+      aspect-ratio: 1;
+      border: 1px solid #ead7dc;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--accent-dark);
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+
+    .message {
+      min-height: 22px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .message.good {
+      color: var(--good);
+    }
+
+    .message.bad {
+      color: var(--bad);
+    }
+
+    .reveal {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: minmax(260px, 0.8fr) minmax(280px, 1.2fr);
+      gap: 18px;
+      align-items: center;
+      margin-top: 18px;
+      padding: clamp(14px, 3vw, 22px);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+
+    .reveal.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .reveal h2 {
+      margin: 0 0 8px;
+      color: var(--accent-dark);
+      font-size: clamp(2rem, 6vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .reveal p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .reveal img {
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      border: 1px solid #ead7dc;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #fff;
+    }
+
+    @media (max-width: 830px) {
+      header,
+      .layout,
+      .reveal {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        align-items: stretch;
+      }
+
+      .progress {
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 440px) {
+      .app {
+        width: min(100% - 14px, 1120px);
+      }
+
+      .controls {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>Anniversary Crossword</h1>
+      <div class="progress" id="progress">0 of 6 solved</div>
+    </header>
+
+    <section class="layout" aria-label="Crossword puzzle">
+      <div class="board-wrap">
+        <div class="board" id="board" aria-label="Crossword grid"></div>
+      </div>
+
+      <aside class="panel">
+        <ol class="clues" id="clues"></ol>
+
+        <div class="controls">
+          <button id="checkButton" type="button">Check</button>
+          <button class="secondary" id="resetButton" type="button">Reset</button>
+        </div>
+
+        <section class="initials" aria-label="Initials in clue order">
+          <p>Initials in order</p>
+          <div class="letters" id="letters"></div>
+          <div class="message" id="message">Fill the crossword to unlock the answer.</div>
+        </section>
+      </aside>
+
+      <section class="reveal" id="reveal" aria-live="polite">
+        <div>
+          <h2>Angela</h2>
+          <p>The first letter of each answer, in clue order, spells ANGELA.</p>
+        </div>
+        <img src="anniversary-reveal.jpg" alt="Happy 3rd Anniversary travel map artwork">
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const rows = 13;
+    const cols = 12;
+    const entries = [
+      {
+        number: 1,
+        answer: "AUGUST",
+        clue: "My birthday is in...",
+        row: 7,
+        col: 4,
+        dir: "across",
+        labelRow: 7,
+        labelCol: 4,
+        hint: "Duh!?"
+      },
+      {
+        number: 2,
+        answer: "NOBODY",
+        clue: "Someone prettier than you, besides me, is...",
+        row: 5,
+        col: 0,
+        dir: "across",
+        hint: "There is only one correct answer, and it's not a person's name."
+      },
+      {
+        number: 3,
+        answer: "GIFT",
+        clue: "Right now, I'm giving you...",
+        row: 0,
+        col: 2,
+        dir: "down",
+        hint: "Something wrapped with love."
+      },
+      {
+        number: 4,
+        answer: "EXTROVERT",
+        clue: "I'm the opposite of being...",
+        row: 3,
+        col: 0,
+        dir: "across",
+        hint: "The opposite of my personality."
+      },
+      {
+        number: 5,
+        answer: "LOVEYOU",
+        clue: "Every night we say...",
+        row: 1,
+        col: 5,
+        dir: "down",
+        hint: "?!?"
+      },
+      {
+        number: 6,
+        answer: "ANIME",
+        clue: "My favourite show to watch is...",
+        row: 7,
+        col: 4,
+        dir: "down",
+        labelRow: 7,
+        labelCol: 4,
+        hint: "Not Netflix... well, sometimes Netflix."
+      }
+    ];
+
+    const grid = Array.from({ length: rows }, () =>
+      Array.from({ length: cols }, () => ({ answer: "", numbers: [], dirs: [] }))
+    );
+
+    entries.forEach((entry) => {
+      [...entry.answer].forEach((letter, index) => {
+        const row = entry.row + (entry.dir === "down" ? index : 0);
+        const col = entry.col + (entry.dir === "across" ? index : 0);
+        grid[row][col].answer = letter;
+        if (!grid[row][col].dirs.includes(entry.dir)) grid[row][col].dirs.push(entry.dir);
+      });
+      const labelRow = entry.labelRow ?? entry.row;
+      const labelCol = entry.labelCol ?? entry.col;
+      grid[labelRow][labelCol].numbers.push(entry.number);
+    });
+
+    const board = document.querySelector("#board");
+    const clues = document.querySelector("#clues");
+    const letters = document.querySelector("#letters");
+    const progress = document.querySelector("#progress");
+    const message = document.querySelector("#message");
+    const reveal = document.querySelector("#reveal");
+    const inputs = new Map();
+
+    function cellKey(row, col) {
+      return `${row}-${col}`;
+    }
+
+    function drawBoard() {
+      board.innerHTML = "";
+      grid.forEach((line, row) => {
+        line.forEach((cell, col) => {
+          const square = document.createElement("div");
+          square.className = cell.answer ? "cell active" : "cell";
+
+          if (cell.numbers.length) {
+            const number = document.createElement("span");
+            number.className = cell.numbers.length > 1 ? "num combo" : "num";
+            number.textContent = cell.numbers.join("/");
+            square.append(number);
+          }
+
+          if (cell.answer) {
+            const input = document.createElement("input");
+            input.maxLength = 1;
+            input.autocomplete = "off";
+            input.inputMode = "text";
+            input.dataset.answer = cell.answer;
+            input.dataset.row = row;
+            input.dataset.col = col;
+            input.dataset.dirs = cell.dirs.join(",");
+            input.setAttribute("aria-label", `Row ${row + 1}, column ${col + 1}`);
+            input.addEventListener("focus", onFocus);
+            input.addEventListener("input", onInput);
+            input.addEventListener("keydown", onKeyDown);
+            inputs.set(cellKey(row, col), input);
+            square.append(input);
+          }
+
+          board.append(square);
+        });
+      });
+    }
+
+    function drawClues() {
+      clues.innerHTML = entries.map((entry) => `
+        <li tabindex="0" data-entry-number="${entry.number}">
+          <span class="badge">${entry.number}</span>
+          <span class="clue">${entry.clue} <strong>(${entry.answer.length})</strong></span>
+          <button class="hint-button" type="button" aria-expanded="false">Hint</button>
+          <span class="hint">${entry.hint}</span>
+        </li>
+      `).join("");
+
+      clues.querySelectorAll("li").forEach((item) => {
+        item.addEventListener("click", chooseClue);
+        item.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            chooseClue(event);
+          }
+        });
+      });
+
+      clues.querySelectorAll(".hint-button").forEach((button) => {
+        button.addEventListener("click", toggleHint);
+      });
+    }
+
+    function drawInitials() {
+      letters.innerHTML = entries.map(() => "<span></span>").join("");
+    }
+
+    let activeDirection = "across";
+
+    function onFocus(event) {
+      const input = event.target;
+      const dirs = input.dataset.dirs.split(",");
+
+      if (dirs.length === 1) {
+        activeDirection = dirs[0];
+      }
+    }
+
+    function chooseClue(event) {
+      const item = event.currentTarget;
+      const entry = entries.find((candidate) => candidate.number === Number(item.dataset.entryNumber));
+      if (!entry) return;
+
+      activeDirection = entry.dir;
+      inputs.get(cellKey(entry.row, entry.col))?.focus();
+    }
+
+    function toggleHint(event) {
+      event.stopPropagation();
+      const button = event.currentTarget;
+      const hint = button.parentElement.querySelector(".hint");
+      const isOpen = hint.classList.toggle("show");
+      button.setAttribute("aria-expanded", String(isOpen));
+    }
+
+    function onInput(event) {
+      const input = event.target;
+      input.value = input.value.replace(/[^a-z]/gi, "").slice(0, 1).toUpperCase();
+      input.closest(".cell").classList.remove("correct", "wrong");
+      if (input.value) moveForward(input);
+      reveal.classList.remove("show");
+      update(false);
+    }
+
+    function onKeyDown(event) {
+      const input = event.target;
+      const row = Number(input.dataset.row);
+      const col = Number(input.dataset.col);
+      const moves = {
+        ArrowUp: [-1, 0],
+        ArrowDown: [1, 0],
+        ArrowLeft: [0, -1],
+        ArrowRight: [0, 1]
+      };
+
+      if (event.key === "Backspace" && !input.value) {
+        focusNearest(row, col, 0, -1);
+      }
+
+      if (moves[event.key]) {
+        event.preventDefault();
+        const [rowMove, colMove] = moves[event.key];
+        activeDirection = rowMove === 0 ? "across" : "down";
+        focusNearest(row, col, rowMove, colMove);
+      }
+    }
+
+    function moveForward(input) {
+      const row = Number(input.dataset.row);
+      const col = Number(input.dataset.col);
+      const dirs = input.dataset.dirs.split(",");
+      const direction = dirs.includes(activeDirection) ? activeDirection : dirs[0];
+
+      if (direction === "down") {
+        focusNearest(row, col, 1, 0);
+      } else {
+        focusNearest(row, col, 0, 1);
+      }
+    }
+
+    function focusNearest(row, col, rowMove, colMove) {
+      let nextRow = row + rowMove;
+      let nextCol = col + colMove;
+      while (nextRow >= 0 && nextRow < rows && nextCol >= 0 && nextCol < cols) {
+        const next = inputs.get(cellKey(nextRow, nextCol));
+        if (next) {
+          next.focus();
+          return;
+        }
+        nextRow += rowMove;
+        nextCol += colMove;
+      }
+    }
+
+    function entryValue(entry) {
+      return [...entry.answer].map((_, index) => {
+        const row = entry.row + (entry.dir === "down" ? index : 0);
+        const col = entry.col + (entry.dir === "across" ? index : 0);
+        return inputs.get(cellKey(row, col)).value;
+      }).join("");
+    }
+
+    function solvedEntries() {
+      return entries.filter((entry) => entryValue(entry) === entry.answer);
+    }
+
+    function update(showFeedback) {
+      const solved = solvedEntries();
+      progress.textContent = `${solved.length} of ${entries.length} solved`;
+
+      [...letters.children].forEach((slot, index) => {
+        const entry = entries[index];
+        slot.textContent = entryValue(entry) === entry.answer ? entry.answer[0] : "";
+      });
+
+      if (solved.length === entries.length) {
+        message.className = "message good";
+        message.textContent = "All answers are correct. Press Check to reveal the picture.";
+      } else {
+        reveal.classList.remove("show");
+        message.className = showFeedback ? "message bad" : "message";
+        message.textContent = showFeedback ? "A few letters still need fixing." : "Fill the crossword to unlock the answer.";
+      }
+    }
+
+    function checkAnswers() {
+      inputs.forEach((input) => {
+        const cell = input.closest(".cell");
+        cell.classList.toggle("correct", input.value === input.dataset.answer);
+        cell.classList.toggle("wrong", Boolean(input.value) && input.value !== input.dataset.answer);
+      });
+      const solved = solvedEntries();
+      update(true);
+
+      if (solved.length === entries.length) {
+        reveal.classList.add("show");
+        message.className = "message good";
+        message.textContent = "ANGELA unlocked.";
+      }
+    }
+
+    function reset() {
+      inputs.forEach((input) => {
+        input.value = "";
+        input.closest(".cell").classList.remove("correct", "wrong");
+      });
+      reveal.classList.remove("show");
+      update(false);
+      const firstInput = inputs.values().next().value;
+      if (firstInput) firstInput.focus();
+    }
+
+    document.querySelector("#checkButton").addEventListener("click", checkAnswers);
+    document.querySelector("#resetButton").addEventListener("click", reset);
+
+    drawBoard();
+    drawClues();
+    drawInitials();
+    update(false);
+  </script>
+</body>
+</html>
